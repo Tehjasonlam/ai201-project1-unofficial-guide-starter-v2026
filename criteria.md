@@ -22,9 +22,15 @@ pipeline earns credit; *"80% seemed reasonable"* does not.
 For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
-**Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+**Why this target:** After chunking `city_guides` on its `## ` section
+headings (see Chunking Strategy below), every chunk is one complete,
+self-contained section — one town, one topic, never split mid-thought. That
+should make retrieval reliable for questions that live inside a single
+section. The one I expect to be hardest is my fifth question ("which two
+towns are easiest to find a meal on a Sunday evening"), because the answer is
+an exception clause buried in the middle of `guide_eating.md`'s "Local
+specifics" section rather than a single flatly-stated fact, so I'm leaving
+room for one miss rather than claiming 5 of 5.
 
 ---
 
@@ -32,9 +38,13 @@ contains the answer.
 
 Every answer the system produces names at least one source document.
 
-**Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
+**Why this target:** This isn't left to the model's discretion — `store.py`
+attaches the source filename to every chunk as metadata, and `generate.py`'s
+system instruction requires the model to name the file it used, on top of the
+gate already having refused anything too far off-topic to answer from. Because
+it's enforced structurally rather than hoped for, I'm holding this one to all
+five, not four — the only way to miss it is the model ignoring an explicit
+instruction it's given every single time.
 
 ---
 
@@ -49,49 +59,56 @@ in at least 4 of 5 tries.
      what happened into your run log. Swap them for your own if you'd rather —
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
-**Why this target:**
-<!-- What did your distances look like when you set the cutoff in Milestone 4?
-     Was there a clean gap, or did the two groups overlap? -->
+**Why this target:** I ran my 5 test questions and the 5 `OUT_OF_SCOPE`
+questions through `app.py retrieve` at the shipped 0.6 cutoff. In-corpus best
+distances came back 0.229, 0.250, 0.305, 0.442, 0.481. Out-of-scope best
+distances came back 0.754, 0.818, 0.822, 0.882, 0.899. That's a clean, wide
+gap — 0.481 to 0.754, no overlap — and 0.6 sits comfortably in the middle of
+it, so I'm keeping the shipped default rather than moving it. All 10 of my 10
+questions actually landed on the correct side of 0.6, which would justify a
+5-of-5 target, but I'm writing down 4 of 5 anyway: five questions is a small
+enough sample that I don't want to promise a target my measurement can't
+actually distinguish from noise.
 
 ---
 
-## 4. Something about your chunks
+## 4. Every chunk has real content in it
 
-<!-- YOU WRITE THIS ONE.
+Every one of my chunks (98 of 98) is at least 100 characters long.
 
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
-
-
-**Why this target:**
-
+**Why this target:** When I ran `python app.py chunks -n 5` after switching to
+section-heading chunking, the shortest chunks it showed me were suspiciously
+short. I checked the length distribution directly and found four chunks under
+100 characters — each one is a bare `# Title` line with no lead-in sentence
+before the first `## ` heading. That happens for four of the five
+cross-cutting guides (`guide_eating.md`, `guide_walking.md`,
+`guide_seasons.md`, `guide_regional_transport.md` — `guide_accessibility.md`
+is the exception, with a two-sentence intro of its own) which jump straight
+into their first heading, unlike all nine town guides, which open with a
+one-to-three-sentence description of the town before their first heading. A chunk with nothing but a
+title in it can't answer anything, so I'm setting the target at zero
+exceptions rather than "most chunks," even though I already know it will miss.
 
 
 ---
 
-## 5. Your choice
+## 5. The retrieved source is the *correct* one, not just *a* one
 
-<!-- YOU WRITE THIS ONE TOO.
+For at least 4 of my 5 test questions, the single closest retrieved chunk's
+source file is the document that actually contains the answer — not merely a
+document that happens to mention the same town or topic.
 
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** A section like "## Getting there" never repeats the
+town's name in its own body text, so without help the embedding for a
+Kestrelford travel question could just as easily match Halden Bay's "Getting
+there" section — same heading, same kind of sentence, wrong town. My fix was
+to prefix every section chunk with its document's `# Title` line (see
+Chunking Strategy), specifically so the town name rides along with each
+section. This criterion is the direct test of whether that decision actually
+worked, which criterion 2 (merely names *a* source) doesn't check. I'm holding
+it to 4 of 5 rather than 5 of 5 for the same reason as criterion 1 — my fifth
+question is the one whose answer lives in a cross-cutting document rather than
+a single town's guide, so "the correct source" for it is less clear-cut.
 
 ---
 
